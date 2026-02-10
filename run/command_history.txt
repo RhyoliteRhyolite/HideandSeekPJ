@@ -1,0 +1,4 @@
+/give Dev hideandseekmod:example_block
+/test
+/test run
+/jumpscare_test
