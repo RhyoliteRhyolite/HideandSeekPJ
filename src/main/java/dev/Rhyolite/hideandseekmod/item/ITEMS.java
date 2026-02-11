@@ -1,8 +1,10 @@
-package dev.Rhyolite.hideandseekmod;
+package dev.Rhyolite.hideandseekmod.item;
 
+import dev.Rhyolite.hideandseekmod.HideandSeekMod;
+import dev.Rhyolite.hideandseekmod.block.TrapBlock;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.TickTask;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
@@ -10,15 +12,22 @@ import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
 public class ITEMS {
     // 1. 여기서 직접 ITEMS 등록기를 만듭니다. (HideandSeekMod에서 가져오지 않음)
-    public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(HideandSeekMod.MODID);
+// DeferredRegister.Items 대신 이 방식을 권장합니다.
+    public static final DeferredRegister<Item> ITEMS = DeferredRegister.create(Registries.ITEM, HideandSeekMod.MODID);
+
+    public static final DeferredHolder<Item, Item> TRAP_ITEM = ITEMS.register("trap",
+            () -> new BlockItem(ModBlocks.TRAP_BLOCK.get(), new Item.Properties())); // ModBlocks에서 가져오기!
 
     // 에너지 드링크
     public static final DeferredHolder<Item, Item> ENERGY_DRINK = ITEMS.register("energy_drink",
@@ -33,24 +42,23 @@ public class ITEMS {
                     player.displayClientMessage(Component.literal("§e⚡ 에너지가 넘쳐흐릅니다!"), true);
                     level.playSound(null, player.getX(), player.getY(), player.getZ(),
                             SoundEvents.GENERIC_DRINK, SoundSource.PLAYERS, 1.0F, 1.0F);
-
-                    // 2. 예약 실행: 10초(200틱) 뒤에 실행될 코드
-                    if (!level.isClientSide) {
-                        level.getServer().tell(new TickTask(level.getServer().getTickCount() + 200, () -> {
-                            // 플레이어가 살아있는지 확인 (죽었으면 효과를 줄 필요 없음)
+                    // 3. 서버에서 10초 뒤에 실행될 작업 예약 (핵심!)
+                    if (!level.isClientSide && level.getServer() != null) {
+                        // 현재 서버 틱 + 200틱(10초) 뒤에 실행
+                        level.getServer().tell(new net.minecraft.server.TickTask(level.getServer().getTickCount() + 200, () -> {
                             if (player.isAlive()) {
-                                // 이동 속도 I (Amplifier 0) / 5초 (100틱) 부여
-                                player.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, 100, 0));
-
-                                // 알림 메시지 (선택 사항)
-                                player.displayClientMessage(Component.literal("§6에너지 드링크의 효능이 끝났습니다."), true);
+                                // 이동 속도 I (Amplifier 0) 부여 (시간은 무제한급으로)
+                                player.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, 9999999, 0, false, false, true));
                             }
                         }));
                     }
 
                     if (!player.getAbilities().instabuild) stack.shrink(1);
                     return InteractionResultHolder.sidedSuccess(stack, level.isClientSide());
+
+
                 }
+
             });
 
     // 칠판 지우개
@@ -97,23 +105,14 @@ public class ITEMS {
                 }
             }
     );
+// 1. 등록기(Register) 생성
+    public static final DeferredRegister<Block> BLOCKS = DeferredRegister.create(Registries.BLOCK, "hideandseekmod");
 
-    // 덫
-    public static final DeferredHolder<Item, Item> TRAP = ITEMS.register("trap",
-            () -> new Item(new Item.Properties().stacksTo(1)) {
-                @Override
-                public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
-                    ItemStack stack = player.getItemInHand(hand);
-                    level.getEntitiesOfClass(Player.class, player.getBoundingBox().inflate(3.0D)).forEach(target -> {
-                        if (target != player) {
-                            target.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 30, 5));
-                            level.playSound(null, target.getX(), target.getY(), target.getZ(),
-                                    SoundEvents.CHAIN_PLACE, SoundSource.PLAYERS, 1.5F, 1.0F);
-                        }
-                    });
-                    if (!player.getAbilities().instabuild) stack.shrink(1);
-                    return InteractionResultHolder.sidedSuccess(stack, level.isClientSide());
-                }
-            }
-    );
+    // 2. 덫 블록 등록
+    public static final DeferredHolder<Block, Block> TRAP_BLOCK = BLOCKS.register("trap",
+            () -> new TrapBlock(BlockBehaviour.Properties.of()
+                    .noCollission()
+                    .instabreak()
+                    .noOcclusion()
+            ));
 }

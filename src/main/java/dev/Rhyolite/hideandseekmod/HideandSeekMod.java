@@ -1,7 +1,7 @@
 package dev.Rhyolite.hideandseekmod;
 
 import com.mojang.logging.LogUtils;
-import dev.Rhyolite.hideandseekmod.item.TrapEventHandler;
+import dev.Rhyolite.hideandseekmod.item.ITEMS;import dev.Rhyolite.hideandseekmod.item.ModBlocks;import dev.Rhyolite.hideandseekmod.item.TrapEventHandler;
 import dev.Rhyolite.hideandseekmod.network.JumpscarePayload;
 import dev.Rhyolite.hideandseekmod.network.PacketHandler;
 import net.minecraft.core.registries.Registries;
@@ -35,18 +35,18 @@ public class HideandSeekMod {
     public static final DeferredHolder<CreativeModeTab, CreativeModeTab> HIDE_AND_SEEK_TAB = CREATIVE_MODE_TABS.register("hideandseek_tab",
             () -> CreativeModeTab.builder()
                     .title(Component.translatable("itemGroup.hideandseekmod"))
-                    .icon(() -> new ItemStack(dev.Rhyolite.hideandseekmod.ITEMS.ENERGY_DRINK.get()))
+                    .icon(() -> new ItemStack(ITEMS.ENERGY_DRINK.get()))
                     .displayItems((parameters, output) -> {
-                        output.accept(dev.Rhyolite.hideandseekmod.ITEMS.ENERGY_DRINK.get());
-                        output.accept(dev.Rhyolite.hideandseekmod.ITEMS.CHALK_ERASER.get());
-                        output.accept(dev.Rhyolite.hideandseekmod.ITEMS.TRAP.get());
+                        output.accept(ITEMS.ENERGY_DRINK.get());
+                        output.accept(ITEMS.CHALK_ERASER.get());
+                        output.accept(ITEMS.TRAP_BLOCK.get());
                     })
                     .build()
     );
 
     public HideandSeekMod(IEventBus modEventBus, ModContainer modContainer) {
         // ModItems에 있는 등록기를 가져와서 등록합니다.
-        dev.Rhyolite.hideandseekmod.ITEMS.ITEMS.register(modEventBus);
+        ITEMS.ITEMS.register(modEventBus);
         CREATIVE_MODE_TABS.register(modEventBus);
 
         modEventBus.addListener(this::commonSetup);
@@ -56,7 +56,7 @@ public class HideandSeekMod {
         NeoForge.EVENT_BUS.register(this);
         modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
 
-        NeoForge.EVENT_BUS.register(TrapEventHandler.class);
+        ModBlocks.BLOCKS.register(modEventBus); // 블록 등록기 실행
     }
 
     private void commonSetup(FMLCommonSetupEvent event) {
@@ -65,10 +65,7 @@ public class HideandSeekMod {
 
     private void addCreative(BuildCreativeModeTabContentsEvent event) {
         // ITEMS를 앞에 붙여서 어디 있는 아이템인지 명시합니다.
-        if (event.getTabKey() == CreativeModeTabs.FOOD_AND_DRINKS) {
-            event.accept(dev.Rhyolite.hideandseekmod.ITEMS.ENERGY_DRINK.get());
-            event.accept(dev.Rhyolite.hideandseekmod.ITEMS.CHALK_ERASER.get());
-        }
+
     }
 
     @SubscribeEvent

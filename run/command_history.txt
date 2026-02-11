@@ -2,3 +2,9 @@
 /test
 /test run
 /jumpscare_test
+/tag Dev add seeker
+/tag Dev remove seeker
+/tag Dev add seeker
+/weather clear
+/tag Dev remove seeker
+/resetgame
