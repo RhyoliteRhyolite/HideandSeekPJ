@@ -11,15 +11,16 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.*;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
+
+import java.util.List;
 
 public class ITEMS {
     // 1. 여기서 직접 ITEMS 등록기를 만듭니다. (HideandSeekMod에서 가져오지 않음)
@@ -105,6 +106,143 @@ public class ITEMS {
                 }
             }
     );
+    //저주인형
+    public static final DeferredHolder<Item, Item> VOODOO_DOLL = ITEMS.register("voodoo_doll",
+            () -> new Item(new Item.Properties().stacksTo(1).rarity(Rarity.RARE)) {
+
+                // 1. 아이템 사용 시간 설정 (3초 = 60틱)
+                @Override
+                public int getUseDuration(ItemStack stack, LivingEntity entity) {
+                    return 60;
+                }
+
+                // 2. 사용 모션 설정 (활 당기는 모션 or 먹는 모션)
+                @Override
+                public UseAnim getUseAnimation(ItemStack stack) {
+                    return UseAnim.BOW; // 인형을 손에 들고 집중하는 모션
+                }
+
+                // 3. 우클릭 시 사용 시작 (차징 시작)
+                @Override
+                public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
+                    ItemStack stack = player.getItemInHand(hand);
+
+                    // 술래는 사용 불가
+                    if (player.getTags().contains("seeker")) {
+                        if (!level.isClientSide) player.displayClientMessage(Component.literal("§c술래는 부두인형을 사용할 수 없습니다!"), true);
+                        return InteractionResultHolder.fail(stack);
+                    }
+
+                    player.startUsingItem(hand); // 3초 카운트다운 시작
+                    return InteractionResultHolder.consume(stack);
+                }
+
+                // 4. 3초 사용이 완료되었을 때 실행되는 로직
+                @Override
+                public ItemStack finishUsingItem(ItemStack stack, Level level, LivingEntity entityLiving) {
+                    if (!level.isClientSide && entityLiving instanceof Player player) {
+
+                        // [오류 해결] 명시적 형변환을 통해 List<Player>로 맞춤
+                        List<Player> targets = level.players().stream()
+                                .map(p -> (Player) p) // ? extends Player를 Player로 캐스팅
+                                .filter(p -> p != player) // 나 제외
+                                .filter(p -> !p.getTags().contains("seeker")) // 술래 제외
+                                .collect(java.util.stream.Collectors.toList());
+
+                        if (targets.isEmpty()) {
+                            player.displayClientMessage(Component.literal("§7텔레포트할 대상이 없습니다."), true);
+                            return stack;
+                        }
+
+                        // 랜덤 타겟 선정 및 이동
+                        Player target = targets.get(level.random.nextInt(targets.size()));
+
+                        // 이동 전 소리
+                        level.playSound(null, player.getX(), player.getY(), player.getZ(),
+                                SoundEvents.CHORUS_FRUIT_TELEPORT, SoundSource.PLAYERS, 1.0F, 1.0F);
+
+                        // 텔레포트!
+                        player.teleportTo(target.getX(), target.getY(), target.getZ());
+
+                        // 이동 후 소리
+                        level.playSound(null, target.getX(), target.getY(), target.getZ(),
+                                SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 1.0F, 1.0F);
+
+                        // 메시지 출력
+                        player.displayClientMessage(Component.literal("§d부두인형이 당신을 §f" + target.getScoreboardName() + "§d에게 인도했습니다!"), true);
+
+                        // [추가됨] 실명 효과 부여 (이동 후 3초간 앞이 안 보임)
+                        player.addEffect(new MobEffectInstance(MobEffects.BLINDNESS, 60, 0));
+
+                        // 아이템 소모
+                        if (!player.getAbilities().instabuild) {
+                            stack.shrink(1);
+                        }
+                    }
+                    return stack;
+                }
+            });
+
+    //표식
+    public static final DeferredHolder<Item, Item> SEEKER_MARK = ITEMS.register("seeker_mark",
+            () -> new Item(new Item.Properties().stacksTo(1).rarity(Rarity.EPIC)) {
+                @Override
+                public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
+                    ItemStack stack = player.getItemInHand(hand);
+
+                    if (!level.isClientSide) {
+                        // 1. 술래 체크 (도망자가 쓰면 실패)
+                        if (!player.getTags().contains("seeker")) {
+                            player.displayClientMessage(Component.literal("§c이 아이템은 술래 전용입니다."), true);
+                            return InteractionResultHolder.fail(stack);
+                        }
+
+                        // 2. 도망자 목록 가져오기
+                        List<Player> targets = level.players().stream()
+                                .map(p -> (Player) p)
+                                .filter(p -> !p.getTags().contains("seeker")) // 술래가 아닌 사람(도망자)만
+                                .collect(java.util.stream.Collectors.toList());
+
+                        if (targets.isEmpty()) {
+                            player.displayClientMessage(Component.literal("§7표식을 남길 도망자가 없습니다."), true);
+                            return InteractionResultHolder.fail(stack);
+                        }
+
+                        // 3. 랜덤 타겟 선정 (이미 코드가 있다면 이 부분부터 수정)
+                        Player target = targets.get(level.random.nextInt(targets.size()));
+
+                        // [중요] ServerPlayer로 형변환해야 connection을 사용할 수 있습니다.
+                        if (target instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
+
+                            // 4. 효과 적용: 발광 (1초)
+                            serverPlayer.addEffect(new MobEffectInstance(MobEffects.GLOWING, 20, 0, false, false, false));
+
+                            // 5. 타이틀 출력 (serverPlayer의 connection 사용)
+                            serverPlayer.connection.send(new net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket(
+                                    Component.literal("§c⚠ 표식되었습니다! ⚠")
+                            ));
+                            serverPlayer.connection.send(new net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket(
+                                    Component.literal("§7술래가 당신의 위치를 파악했습니다.")
+                            ));
+
+                            // 6. 소리 재생
+                            level.playSound(null, serverPlayer.getX(), serverPlayer.getY(), serverPlayer.getZ(),
+                                    SoundEvents.ELDER_GUARDIAN_CURSE, SoundSource.PLAYERS, 1.0F, 1.0F);
+                        }
+
+                        // 술래에게 성공 메시지
+                        player.displayClientMessage(Component.literal("§e" + target.getScoreboardName() + "§f에게 표식을 남겼습니다!"), true);
+
+                        // 아이템 소모
+                        if (!player.getAbilities().instabuild) {
+                            stack.shrink(1);
+                        }
+                    }
+
+                    return InteractionResultHolder.sidedSuccess(stack, level.isClientSide());
+                }
+            });
+
 // 1. 등록기(Register) 생성
     public static final DeferredRegister<Block> BLOCKS = DeferredRegister.create(Registries.BLOCK, "hideandseekmod");
 

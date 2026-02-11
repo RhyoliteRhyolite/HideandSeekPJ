@@ -40,6 +40,9 @@ public class HideandSeekMod {
                         output.accept(ITEMS.ENERGY_DRINK.get());
                         output.accept(ITEMS.CHALK_ERASER.get());
                         output.accept(ITEMS.TRAP_BLOCK.get());
+                        output.accept(ITEMS.TRAP_ITEM.get());
+                        output.accept(ITEMS.VOODOO_DOLL.get());
+                        output.accept(ITEMS.SEEKER_MARK.get());
                     })
                     .build()
     );

@@ -14,13 +14,15 @@ public class ItemPicker {
 
     // 술래 아이템 리스트
     private static final List<Item> SEEKER_ITEMS = List.of(
-            ITEMS.TRAP_ITEM.get()
+            ITEMS.TRAP_ITEM.get(),
+            ITEMS.SEEKER_MARK.get()
     );
 
     // 도망자 아이템 리스트
     private static final List<Item> RUNNER_ITEMS = List.of(
             ITEMS.ENERGY_DRINK.get(),
-            ITEMS.CHALK_ERASER.get()
+            ITEMS.CHALK_ERASER.get(),
+            ITEMS.VOODOO_DOLL.get()
     );
 
     public static void giveRandomItem(Player player) {
