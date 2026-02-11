@@ -8,3 +8,7 @@
 /weather clear
 /tag Dev remove seeker
 /resetgame
+/tag Dev add seeker
+/resetgame
+/effect clear Dev
+/resetgame
