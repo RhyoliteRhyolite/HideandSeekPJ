@@ -6,7 +6,9 @@ import dev.Rhyolite.hideandseekmod.logic.ItemPicker;
 import dev.Rhyolite.hideandseekmod.network.JumpscarePayload;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -54,10 +56,12 @@ public class GameEvents {
         Player player = event.getEntity();
         BlockPos pos = event.getPos();
 
+        var targetBlock = BuiltInRegistries.BLOCK.get(ResourceLocation.fromNamespaceAndPath("yuushya", "recycle_bin_0"));
+
         if (level.isClientSide) return;
 
         // 철 블록(보급소)인지 확인
-        if (level.getBlockState(pos).is(Blocks.IRON_BLOCK)) {
+        if (level.getBlockState(pos).is(targetBlock)) {
             UUID uuid = player.getUUID();
             long currentTime = level.getGameTime();
 
