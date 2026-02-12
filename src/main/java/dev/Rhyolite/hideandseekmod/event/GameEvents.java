@@ -6,28 +6,19 @@ import dev.Rhyolite.hideandseekmod.logic.GameManager;
 import dev.Rhyolite.hideandseekmod.logic.ItemPicker;
 import dev.Rhyolite.hideandseekmod.network.JumpscarePayload;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.world.effect.MobEffectInstance;
-import net.minecraft.world.effect.MobEffects;
-import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Blocks;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.entity.EntityMountEvent;
 import net.neoforged.neoforge.event.entity.item.ItemTossEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
-import net.neoforged.neoforge.event.entity.living.MobEffectEvent;
-import net.neoforged.neoforge.event.entity.player.AttackEntityEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
@@ -41,23 +32,28 @@ public class GameEvents {
     public static void onPlayerDeath(LivingDeathEvent event) {
         if (!GameManager.isGameActive) return;
 
-        // 1. 죽은 사람이 플레이어(도망자)인지 확인
         if (event.getEntity() instanceof ServerPlayer victim && !victim.getTags().contains("seeker")) {
-
-            // 2. 죽인 원인(Source)이 플레이어(술래)인지 확인
             if (event.getSource().getEntity() instanceof ServerPlayer attacker && attacker.getTags().contains("seeker")) {
 
-                // [핵심] 도망자에게 점프스케어 패킷 전송
-                // (네트워크 채널 설정이 되어 있다고 가정합니다)
+                // 1. 점프스케어 패킷 전송
                 PacketDistributor.sendToPlayer(victim, new JumpscarePayload("jumpscare"));
 
-                // 추가 연출: 도망자를 관전 모드로 변경하거나 메시지 출력
+                // 2. 즉시 관전 모드 전환 (남은 인원 체크를 위해 중요)
                 victim.setGameMode(GameType.SPECTATOR);
-                attacker.sendSystemMessage(Component.literal("§c[!] 도망자를 잡았습니다!"));
-                victim.sendSystemMessage(Component.literal("§4[!] 술래에게 잡혔습니다!"));
 
-                // 킬 로그 숨기기 등을 원하면 event.setCanceled(true)를 고려할 수 있으나,
-                // LivingDeathEvent는 취소 불가능할 수 있으므로 메시지만 띄우는 게 안전합니다.
+                attacker.sendSystemMessage(Component.literal("§c[!] 도망자 " + victim.getScoreboardName() + "님을 잡았습니다!"));
+
+                // 3. [추가] 남은 도망자 확인
+                ServerLevel level = (ServerLevel) victim.level();
+                int remaining = GameManager.getRemainingRunners(level);
+
+                if (remaining > 0) {
+                    level.getServer().getPlayerList().broadcastSystemMessage(
+                            Component.literal("§e[!] 남은 도망자 수: §l" + remaining + "명"), false);
+                } else {
+                    // 도망자가 0명이면 술래 승리!
+                    GameManager.seekerWin(level);
+                }
             }
         }
     }
@@ -114,7 +110,7 @@ public class GameEvents {
 
     }
 
-    public static void resetGame() {
+    public static void resetGame(ServerLevel level) {
         // 사용된 블록 기록 삭제
         usedSupplyBlocks.clear();
         // 플레이어 쿨타임 기록 삭제

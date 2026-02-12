@@ -7,7 +7,7 @@ forgedatauserdev
 --assetIndex
 17
 --assetsDir
-/Users/rhyolite99/.gradle/caches/neoformruntime/assets
+C:\\Users\\scpzo\\.gradle\\caches\\neoformruntime\\assets
 --gameDir
 .
 --fml.neoForgeVersion
@@ -24,6 +24,6 @@ forgedatauserdev
 hideandseekmod
 --all
 --output
-/Users/rhyolite99/Desktop/HideandSeekNew/src/generated/resources
+C:\\Users\\scpzo\\Desktop\\minecraft_mod\\clone2\\HideandSeekPJ\\src\\generated\\resources
 --existing
-/Users/rhyolite99/Desktop/HideandSeekNew/src/main/resources
+C:\\Users\\scpzo\\Desktop\\minecraft_mod\\clone2\\HideandSeekPJ\\src\\main\\resources

@@ -101,7 +101,7 @@ public class CabinetBlock extends HorizontalDirectionalBlock {
 
             if (!level.isClientSide) {
                 // Y좌표를 -0.6으로 설정 (너무 낮으면 땅에 파묻힘)
-                double spawnY = pos.getY() + 0.4;
+                double spawnY = pos.getY() + 0.5;
                 ArmorStand seat = new ArmorStand(level, pos.getX() + 0.5, spawnY, pos.getZ() + 0.5);
 
                 seat.setInvisible(true);

@@ -28,7 +28,7 @@ public class CabinetEventHandler {
                 player.addEffect(new MobEffectInstance(MobEffects.INVISIBILITY, 40, 0, false, false));
             } else {
                 // 효과 지속시간 갱신 (캐비닛 안에 있는 동안 계속 유지)
-                player.addEffect(new MobEffectInstance(MobEffects.INVISIBILITY, 40, 0, false, false));
+                player.addEffect(new MobEffectInstance(MobEffects.INVISIBILITY, 5, 0, false, false));
             }
 
             // 1. 하차 로직 (Shift 누를 시)

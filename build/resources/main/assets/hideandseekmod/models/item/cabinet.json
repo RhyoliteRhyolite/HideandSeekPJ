@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/cabinet",
+  "textures": {
+    "all": "hideandseekmod:block/cabinet"
+  }
+}

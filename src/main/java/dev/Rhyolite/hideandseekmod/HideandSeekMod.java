@@ -19,6 +19,7 @@ import net.neoforged.fml.config.ModConfig;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent;
+import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
@@ -53,6 +54,7 @@ public class HideandSeekMod {
 
     public HideandSeekMod(IEventBus modEventBus, ModContainer modContainer) {
         // ModItems에 있는 등록기를 가져와서 등록합니다.
+        NeoForge.EVENT_BUS.register(this);
         ITEMS.ITEMS.register(modEventBus);
         CREATIVE_MODE_TABS.register(modEventBus);
 
@@ -60,10 +62,17 @@ public class HideandSeekMod {
         modEventBus.addListener(this::addCreative);
         modEventBus.addListener(PacketHandler::register);
 
-        NeoForge.EVENT_BUS.register(this);
+
         modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
 
+
+
         ModBlocks.BLOCKS.register(modEventBus); // 블록 등록기 실행
+    }
+    @SubscribeEvent
+    public void onRegisterCommands(RegisterCommandsEvent event) {
+        // ModCommands 클래스의 register 메서드 호출
+        ModCommands.register(event.getDispatcher());
     }
 
     private void commonSetup(FMLCommonSetupEvent event) {
@@ -75,18 +84,8 @@ public class HideandSeekMod {
 
     }
 
-    @SubscribeEvent
-    public void onRegisterCommands(net.neoforged.neoforge.event.RegisterCommandsEvent event) {
-        event.getDispatcher().register(
-                net.minecraft.commands.Commands.literal("jumpscare_test")
-                        .executes(context -> {
-                            Player player = context.getSource().getPlayerOrException();
-                            PacketDistributor.sendToPlayer((net.minecraft.server.level.ServerPlayer) player, new JumpscarePayload("jumpscare.png"));
-                            context.getSource().sendSuccess(() -> Component.literal("점프스캐어 테스트!"), false);
-                            return 1;
-                        })
-        );
-    }
+
+
 
 
 }

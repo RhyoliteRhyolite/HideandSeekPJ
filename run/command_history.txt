@@ -1,11 +1,3 @@
-/give Dev hideandseekmod:example_block
-/test
-/test run
-/jumpscare_test
-/tag Dev add seeker
-/tag Dev remove seeker
-/tag Dev add seeker
-/weather clear
 /tag Dev remove seeker
 /resetgame
 /tag Dev add seeker
@@ -27,3 +19,32 @@
 /gamestart
 /gamemode creative
 /gamemode adventure
+/gamemode creative
+/help
+/startgame
+/resetgame
+/startgame
+/resetgame
+/startgame
+/kill
+/tag Dev remove seeker
+/kill
+/start
+/startgame
+/stopgame
+/startgame
+/stopgame
+/startgame
+/stopgame
+/tick unfreeze
+/tick query
+/tick step 7000s
+/tick freeze
+/tick step 7000s
+/tick unfreeze
+/startgame
+/startgamet
+/startgame
+/gamemode adventure
+/startgame
+/stopgame
