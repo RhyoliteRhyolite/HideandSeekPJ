@@ -1,6 +1,7 @@
 package dev.Rhyolite.hideandseekmod.item;
 
 import dev.Rhyolite.hideandseekmod.HideandSeekMod;
+import dev.Rhyolite.hideandseekmod.block.CabinetBlock;
 import dev.Rhyolite.hideandseekmod.block.TrapBlock;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.Registries;
@@ -16,6 +17,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.*;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
@@ -243,6 +245,55 @@ public class ITEMS {
                 }
             });
 
+    //도발
+    public static final DeferredHolder<Item, Item> TAUNT_ITEM = ITEMS.register("taunt_item",
+            () -> new Item(new Item.Properties().stacksTo(1).rarity(Rarity.EPIC)) {
+                @Override
+                public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
+                    ItemStack stack = player.getItemInHand(hand);
+
+                    // 1. 도망자만 사용 가능
+                    if (player.getTags().contains("seeker")) {
+                        return InteractionResultHolder.fail(stack);
+                    }
+
+                    // 2. 쿨타임 확인
+                    if (!player.getCooldowns().isOnCooldown(this)) {
+
+                        // [수정됨] 소리 재생을 if문 밖으로 뺐습니다.
+                        // 첫 번째 인자에 'player'를 넣으세요.
+                        level.playSound(player, player.getX(), player.getY(), player.getZ(),
+                                SoundEvents.CAT_AMBIENT, SoundSource.PLAYERS, 1.0F, 1.0F);
+
+                        // 서버 사이드 로직 (쿨타임, 데이터 저장, 메시지)
+                        if (!level.isClientSide) {
+                            int currentTaunts = player.getPersistentData().getInt("taunt_count");
+                            player.getPersistentData().putInt("taunt_count", currentTaunts + 1);
+
+                            player.displayClientMessage(Component.literal("§e야옹!"), true);
+                            player.getCooldowns().addCooldown(this, 600); // 30초 쿨타임
+                        }
+
+                        // 성공 반환
+                        return InteractionResultHolder.sidedSuccess(stack, level.isClientSide());
+                    }
+
+                    return InteractionResultHolder.fail(stack);
+                }
+            });
+    //캐비넷 아이템
+    public static final DeferredHolder<Item, Item> CABINET_ITEM = ITEMS.register("block_cabinet",
+            () -> new BlockItem(ModBlocks.CABINET.get(), new Item.Properties()));
+
+    //뿅망치
+    public static final DeferredHolder<Item, Item> PICO_HAMMER = ITEMS.register("pico_hammer",
+            () -> new Item(new Item.Properties()
+                    .stacksTo(1)
+                    .rarity(Rarity.EPIC)
+                    // 뿅망치 대미지 설정 (예: 공격력 4, 공격 속도 -2.0)
+                    .attributes(SwordItem.createAttributes(Tiers.WOOD, 3, -2.4f))
+            ));
+
 // 1. 등록기(Register) 생성
     public static final DeferredRegister<Block> BLOCKS = DeferredRegister.create(Registries.BLOCK, "hideandseekmod");
 
@@ -253,4 +304,5 @@ public class ITEMS {
                     .instabreak()
                     .noOcclusion()
             ));
+
 }

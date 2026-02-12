@@ -1,6 +1,7 @@
 package dev.Rhyolite.hideandseekmod;
 
 import com.mojang.logging.LogUtils;
+import dev.Rhyolite.hideandseekmod.command.ModCommands;
 import dev.Rhyolite.hideandseekmod.item.ITEMS;import dev.Rhyolite.hideandseekmod.item.ModBlocks;import dev.Rhyolite.hideandseekmod.item.TrapEventHandler;
 import dev.Rhyolite.hideandseekmod.network.JumpscarePayload;
 import dev.Rhyolite.hideandseekmod.network.PacketHandler;
@@ -43,6 +44,9 @@ public class HideandSeekMod {
                         output.accept(ITEMS.TRAP_ITEM.get());
                         output.accept(ITEMS.VOODOO_DOLL.get());
                         output.accept(ITEMS.SEEKER_MARK.get());
+                        output.accept(ITEMS.TAUNT_ITEM.get());
+                        output.accept(ITEMS.CABINET_ITEM.get());
+                        output.accept(ITEMS.PICO_HAMMER.get());
                     })
                     .build()
     );
@@ -83,4 +87,6 @@ public class HideandSeekMod {
                         })
         );
     }
+
+
 }

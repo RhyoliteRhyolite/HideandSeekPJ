@@ -12,3 +12,18 @@
 /resetgame
 /effect clear Dev
 /resetgame
+/give Dev hideandseekmod:taunt_item
+/give Dev hideandseekmod:block_cabinet
+/gamemode adventure
+/gamemode creative
+/tag Dev remove seeker
+/gamemode creative Dev
+/tag Dev remove seeker
+/gamemode adventure
+/gamemode creative
+/gamemode adventure
+/gamemode creative
+/gamemode adventure
+/gamestart
+/gamemode creative
+/gamemode adventure

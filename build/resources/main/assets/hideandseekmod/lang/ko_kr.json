@@ -5,5 +5,7 @@
   "item.hideandseekmod.chalk_eraser": "칠판 지우개",
   "item.hideandseekmod.seeker_mark": "표식",
   "block.hideandseekmod.trap": "덫",
-  "item.hideandseekmod.trap": "덫"
+  "item.hideandseekmod.trap": "덫",
+  "item.hideandseekmod.taunt_item": "도발",
+  "block.hideandseekmod.cabinet": "캐비닛"
 }
