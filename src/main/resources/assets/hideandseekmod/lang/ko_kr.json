@@ -8,5 +8,7 @@
   "item.hideandseekmod.trap": "덫",
   "item.hideandseekmod.taunt_item": "도발",
   "item.hideandseekmod.pico_hammer": "뿅망치",
-  "block.hideandseekmod.cabinet": "캐비닛"
+  "block.hideandseekmod.cabinet": "캐비닛",
+  "item.hideandseekmod.frost_snowball": "눈덩이",
+  "item.hideandseekmod.spectator_trap": "깜짝상자(관전자)"
 }

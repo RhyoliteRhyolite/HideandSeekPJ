@@ -73,6 +73,15 @@ public class CabinetBlock extends HorizontalDirectionalBlock {
             List<ArmorStand> seats = level.getEntitiesOfClass(ArmorStand.class, state.getShape(level, pos).bounds().move(pos),
                     entity -> entity.getTags().contains("cabinet_seat"));
 
+            long lastExit = player.getPersistentData().getLong("last_cabinet_exit");
+            long currentTime = level.getGameTime();
+
+            if (currentTime - lastExit < 80) { // 80틱 = 4초
+                long remain = (80 - (currentTime - lastExit)) / 20;
+                player.displayClientMessage(Component.literal("§c재입장 쿨타임: " + (remain + 1) + "초"), true);
+                return InteractionResult.FAIL;
+            }
+
             if (!seats.isEmpty()) {
                 // 이미 누군가 있음
                 ArmorStand seat = seats.get(0);
@@ -101,7 +110,7 @@ public class CabinetBlock extends HorizontalDirectionalBlock {
 
             if (!level.isClientSide) {
                 // Y좌표를 -0.6으로 설정 (너무 낮으면 땅에 파묻힘)
-                double spawnY = pos.getY() + 0.5;
+                double spawnY = pos.getY() + 0.4;
                 ArmorStand seat = new ArmorStand(level, pos.getX() + 0.5, spawnY, pos.getZ() + 0.5);
 
                 seat.setInvisible(true);

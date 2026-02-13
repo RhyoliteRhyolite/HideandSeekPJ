@@ -1,6 +1,7 @@
 package dev.Rhyolite.hideandseekmod;
 
 import com.mojang.logging.LogUtils;
+import dev.Rhyolite.hideandseekmod.block.ModBlockEntities;
 import dev.Rhyolite.hideandseekmod.command.ModCommands;
 import dev.Rhyolite.hideandseekmod.item.ITEMS;import dev.Rhyolite.hideandseekmod.item.ModBlocks;import dev.Rhyolite.hideandseekmod.item.TrapEventHandler;
 import dev.Rhyolite.hideandseekmod.network.JumpscarePayload;
@@ -19,7 +20,6 @@ import net.neoforged.fml.config.ModConfig;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent;
-import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
@@ -48,31 +48,26 @@ public class HideandSeekMod {
                         output.accept(ITEMS.TAUNT_ITEM.get());
                         output.accept(ITEMS.CABINET_ITEM.get());
                         output.accept(ITEMS.PICO_HAMMER.get());
+                        output.accept(ITEMS.FROST_SNOWBALL.get());
+                        output.accept(ITEMS.SPECTATOR_TRAP.get());
                     })
                     .build()
     );
 
     public HideandSeekMod(IEventBus modEventBus, ModContainer modContainer) {
         // ModItems에 있는 등록기를 가져와서 등록합니다.
-        NeoForge.EVENT_BUS.register(this);
         ITEMS.ITEMS.register(modEventBus);
         CREATIVE_MODE_TABS.register(modEventBus);
-
         modEventBus.addListener(this::commonSetup);
         modEventBus.addListener(this::addCreative);
         modEventBus.addListener(PacketHandler::register);
-
-
+        NeoForge.EVENT_BUS.addListener(this::onRegisterCommands);
+        NeoForge.EVENT_BUS.register(this);
         modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
 
-
+        ModBlockEntities.BLOCK_ENTITIES.register(modEventBus);
 
         ModBlocks.BLOCKS.register(modEventBus); // 블록 등록기 실행
-    }
-    @SubscribeEvent
-    public void onRegisterCommands(RegisterCommandsEvent event) {
-        // ModCommands 클래스의 register 메서드 호출
-        ModCommands.register(event.getDispatcher());
     }
 
     private void commonSetup(FMLCommonSetupEvent event) {
@@ -84,6 +79,20 @@ public class HideandSeekMod {
 
     }
 
+    @SubscribeEvent
+    public void onRegisterCommands(net.neoforged.neoforge.event.RegisterCommandsEvent event) {
+        event.getDispatcher().register(
+                net.minecraft.commands.Commands.literal("jumpscare_test")
+                        .executes(context -> {
+                            Player player = context.getSource().getPlayerOrException();
+                            PacketDistributor.sendToPlayer((net.minecraft.server.level.ServerPlayer) player, new JumpscarePayload("jumpscare.png"));
+                            context.getSource().sendSuccess(() -> Component.literal("점프스캐어 테스트!"), false);
+                            return 1;
+                        })
+        );
+
+        ModCommands.register(event.getDispatcher());
+    }
 
 
 

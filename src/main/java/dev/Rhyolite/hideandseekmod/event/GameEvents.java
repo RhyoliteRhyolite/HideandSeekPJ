@@ -1,6 +1,6 @@
 package dev.Rhyolite.hideandseekmod.event;
 
-import dev.Rhyolite.hideandseekmod.HideandSeekMod;
+import dev.Rhyolite.hideandseekmod.block.TrashCanBlockEntity;
 import dev.Rhyolite.hideandseekmod.item.ITEMS;
 import dev.Rhyolite.hideandseekmod.logic.GameManager;
 import dev.Rhyolite.hideandseekmod.logic.ItemPicker;
@@ -11,10 +11,16 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.item.ItemTossEvent;
@@ -25,7 +31,7 @@ import net.neoforged.neoforge.network.PacketDistributor;
 
 import java.util.*;
 
-@EventBusSubscriber(modid = HideandSeekMod.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = "hideandseekmod")
 public class GameEvents {
 
     @SubscribeEvent
@@ -57,6 +63,7 @@ public class GameEvents {
             }
         }
     }
+
 
     // 1. 플레이어별 쿨타임 (어디서든 아이템을 뽑은 후 대기시간)
     private static final Map<UUID, Long> playerCooldowns = new HashMap<>();
@@ -110,49 +117,93 @@ public class GameEvents {
 
     }
 
-    public static void resetGame(ServerLevel level) {
-        // 사용된 블록 기록 삭제
-        usedSupplyBlocks.clear();
-        // 플레이어 쿨타임 기록 삭제
-        playerCooldowns.clear();
+    // 외부 모드(yuushya)의 쓰레기통 블록 참조
+    public static final Block TRASH_CAN_BLOCK = BuiltInRegistries.BLOCK.get(ResourceLocation.fromNamespaceAndPath("yuushya", "recycle_bin_0"));
 
-        // 콘솔이나 서버 로그에 표시 (선택 사항)
-        System.out.println("[HideAndSeek] 게임 데이터가 초기화되었습니다.");
+    // [1] 관전자 차단 및 함정 설치
+    @SubscribeEvent
+    public static void onSpectatorInteract(PlayerInteractEvent.RightClickBlock event) {
+        if (event.getLevel().isClientSide) return;
+
+        ServerPlayer player = (ServerPlayer) event.getEntity();
+        BlockState state = event.getLevel().getBlockState(event.getPos());
+
+        // 타겟 블록인지 확인
+        if (state.is(TRASH_CAN_BLOCK)) {
+
+            // A. 관전자인 경우
+            if (player.isSpectator()) {
+                // 함정 아이템을 들고 있다면 설치 시도
+                if (player.getMainHandItem().is(ITEMS.SPECTATOR_TRAP.get())) {
+                    BlockEntity be = event.getLevel().getBlockEntity(event.getPos());
+
+                    if (be instanceof TrashCanBlockEntity trashCan) {
+                        if (trashCan.isTrapped()) {
+                            player.displayClientMessage(Component.literal("§c이미 함정이 설치된 쓰레기통입니다."), true);
+                        } else {
+                            trashCan.setTrapped(true);
+                            player.level().playSound(null, event.getPos(), SoundEvents.SCULK_BLOCK_CHARGE, SoundSource.PLAYERS, 1.0F, 1.0F);
+                            player.displayClientMessage(Component.literal("§5[!] 쓰레기통에 점프스케어 함정을 설치했습니다!"), true);
+                        }
+                    }
+                } else {
+                    // 함정 아이템이 아닌 일반 클릭은 아예 막음 (아이템 획득 방지)
+                    player.displayClientMessage(Component.literal("§c관전자는 쓰레기을 이용할 수 없습니다."), true);
+                }
+
+                // 관전자의 모든 상호작용은 여기서 종료 (설치든 털기 시도든 취소)
+                event.setCancellationResult(InteractionResult.SUCCESS);
+                event.setCanceled(true);
+                return;
+            }
+
+            // B. 도망자인 경우 (함정 발동)
+            if (!player.getTags().contains("seeker")) {
+                BlockEntity be = event.getLevel().getBlockEntity(event.getPos());
+
+                if (be instanceof TrashCanBlockEntity trashCan && trashCan.isTrapped()) {
+                    // 1. 점프스케어 발동
+                    PacketDistributor.sendToPlayer(player, new JumpscarePayload("jumpscare"));
+
+                    // 2. 비명 소리
+                    player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
+                            SoundEvents.GHAST_SCREAM, SoundSource.PLAYERS, 2.0F, 0.5F);
+
+                    player.sendSystemMessage(Component.literal("§4[!] 함정에 걸렸습니다!"));
+
+                    // 3. 함정 해제
+                    trashCan.setTrapped(false);
+
+                    // 4. 쓰레기통 열기 취소
+                    event.setCancellationResult(InteractionResult.SUCCESS);
+                    event.setCanceled(true);
+                }
+            }
+        }
     }
 
     private static final int TAUNT_SLOT = 8; // 9번째 슬롯 (인덱스 8)
 
     // 1. 아이템 버리기(Q키) 방지
     @SubscribeEvent
-    public static void onItemDrop(ItemTossEvent event) {
-        if (event.getEntity().getItem().is(ITEMS.TAUNT_ITEM.get())) {
-            // 로그가 콘솔에 뜨는지 확인해보세요
-            // System.out.println("도발 아이템 버리기 감지됨 - 취소");
-
-            event.setCanceled(true); // 이벤트 취소 (버리기 막음)
-
-            // 아이템 엔티티가 이미 생성되었다면 제거 (확실한 처리)
-            if (event.getEntity() != null) {
-                event.getEntity().discard();
-            }
-
-            // 플레이어 인벤토리에 복구 (서버와 클라이언트 동기화 문제 방지)
-            if (event.getPlayer() != null) {
-                event.getPlayer().getInventory().setItem(TAUNT_SLOT, new ItemStack(ITEMS.TAUNT_ITEM.get()));
-                event.getPlayer().displayClientMessage(Component.literal("§c도발 아이템은 버릴 수 없습니다!"), true);
-            }
-        }
-    }
-
-    // 2. 아이템 고정 및 이동 방지 (매 틱 실행)
-    @SubscribeEvent
     public static void onPlayerTick(PlayerTickEvent.Post event) {
         Player player = event.getEntity();
+        if (player.level().isClientSide) return; // 서버 측에서만 처리
 
-        // 서버에서만 검사해도 되지만, 화면 떨림 방지를 위해 클라이언트도 검사
+        // [1] 관전자는 모든 로직 건너뛰기
         if (player.isSpectator()) return;
 
-        // 술래가 아닌 경우에만 (도망자)
+        // [2] 게임 중이 아니거나 플레이어가 죽어가는 상태라면 모든 아이템 삭제
+        // (사망 시 아이템 증발을 틱 단위로 보장하고 싶을 때)
+        if (!GameManager.isGameActive || !player.isAlive()) {
+            if (!player.getInventory().isEmpty()) {
+                player.getInventory().clearContent();
+                player.inventoryMenu.broadcastChanges();
+            }
+            return;
+        }
+
+        // [3] 술래가 아닌 도망자인 경우의 특수 아이템(도발템) 관리 로직
         if (!player.getTags().contains("seeker")) {
             boolean changed = false;
 
@@ -162,14 +213,14 @@ public class GameEvents {
                 changed = true;
             }
 
-            // [B] 8번 슬롯이 비었거나 다른 아이템인 경우 -> 재생성
+            // [B] 8번 슬롯(TAUNT_SLOT) 강제 고정
             ItemStack stackInSlot = player.getInventory().getItem(TAUNT_SLOT);
             if (!stackInSlot.is(ITEMS.TAUNT_ITEM.get())) {
                 player.getInventory().setItem(TAUNT_SLOT, new ItemStack(ITEMS.TAUNT_ITEM.get()));
                 changed = true;
             }
 
-            // [C] 8번 슬롯 외의 다른 곳에 있는 경우 -> 삭제
+            // [C] 8번 슬롯 외의 다른 곳에 도발 아이템이 있다면 삭제
             for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
                 if (i != TAUNT_SLOT) {
                     if (player.getInventory().getItem(i).is(ITEMS.TAUNT_ITEM.get())) {
@@ -179,8 +230,14 @@ public class GameEvents {
                 }
             }
 
-            // 인벤토리가 변경되었다면 강제 업데이트 (화면 갱신)
+            // 인벤토리 변경 사항 반영
             if (changed) {
+                player.inventoryMenu.broadcastChanges();
+            }
+        } else {
+            // 술래인 경우: 도발 아이템을 가지고 있으면 안 됨
+            if (player.getInventory().contains(new ItemStack(ITEMS.TAUNT_ITEM.get()))) {
+                player.getInventory().clearOrCountMatchingItems(stack -> stack.is(ITEMS.TAUNT_ITEM.get()), -1, player.inventoryMenu.getCraftSlots());
                 player.inventoryMenu.broadcastChanges();
             }
         }

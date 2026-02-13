@@ -6,6 +6,7 @@ import dev.Rhyolite.hideandseekmod.block.TrapBlock;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
@@ -13,7 +14,9 @@ import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.projectile.Snowball;
 import net.minecraft.world.item.*;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
@@ -91,10 +94,12 @@ public class ITEMS {
                         }
                     }
 
+
                     if (!level.isClientSide) {
                         level.getEntitiesOfClass(Player.class, player.getBoundingBox().inflate(5.0D)).forEach(target -> {
                             if (target != player) {
                                 target.addEffect(new MobEffectInstance(MobEffects.DARKNESS, 100, 0));
+                                target.addEffect(new MobEffectInstance(MobEffects.BLINDNESS, 100, 0));
                             }
                         });
                     }
@@ -112,43 +117,54 @@ public class ITEMS {
     public static final DeferredHolder<Item, Item> VOODOO_DOLL = ITEMS.register("voodoo_doll",
             () -> new Item(new Item.Properties().stacksTo(1).rarity(Rarity.RARE)) {
 
-                // 1. 아이템 사용 시간 설정 (3초 = 60틱)
                 @Override
                 public int getUseDuration(ItemStack stack, LivingEntity entity) {
-                    return 60;
+                    return 60; // 3초 (60틱)
                 }
 
-                // 2. 사용 모션 설정 (활 당기는 모션 or 먹는 모션)
                 @Override
                 public UseAnim getUseAnimation(ItemStack stack) {
-                    return UseAnim.BOW; // 인형을 손에 들고 집중하는 모션
+                    return UseAnim.BOW;
                 }
 
-                // 3. 우클릭 시 사용 시작 (차징 시작)
+                // 1. 차징 중 액션바에 진행도 표시
+                @Override
+                public void onUseTick(Level level, LivingEntity livingEntity, ItemStack stack, int remainingUseDuration) {
+                    if (level.isClientSide && livingEntity instanceof Player player) {
+                        int duration = getUseDuration(stack, livingEntity);
+                        int processed = duration - remainingUseDuration;
+
+                        // 진행도를 시각적으로 표현 (예: [■■■□□])
+                        int totalBars = 10;
+                        int filledBars = (processed * totalBars) / duration;
+                        String progressBar = "§a" + "■".repeat(Math.max(0, filledBars)) +
+                                "§7" + "□".repeat(Math.max(0, totalBars - filledBars));
+
+                        player.displayClientMessage(Component.literal("§d부두인형 주술 거는 중... " + progressBar), true);
+                    }
+                }
+
                 @Override
                 public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
                     ItemStack stack = player.getItemInHand(hand);
-
-                    // 술래는 사용 불가
                     if (player.getTags().contains("seeker")) {
                         if (!level.isClientSide) player.displayClientMessage(Component.literal("§c술래는 부두인형을 사용할 수 없습니다!"), true);
                         return InteractionResultHolder.fail(stack);
                     }
-
-                    player.startUsingItem(hand); // 3초 카운트다운 시작
+                    player.startUsingItem(hand);
                     return InteractionResultHolder.consume(stack);
                 }
 
-                // 4. 3초 사용이 완료되었을 때 실행되는 로직
                 @Override
                 public ItemStack finishUsingItem(ItemStack stack, Level level, LivingEntity entityLiving) {
                     if (!level.isClientSide && entityLiving instanceof Player player) {
 
-                        // [오류 해결] 명시적 형변환을 통해 List<Player>로 맞춤
+                        // 2. 타겟 필터링 (나 제외 + 술래 제외 + 관전자 제외)
                         List<Player> targets = level.players().stream()
-                                .map(p -> (Player) p) // ? extends Player를 Player로 캐스팅
-                                .filter(p -> p != player) // 나 제외
+                                .map(p -> (Player) p)
+                                .filter(p -> p != player) // 나 자신 제외
                                 .filter(p -> !p.getTags().contains("seeker")) // 술래 제외
+                                .filter(p -> !p.isSpectator()) // ★ 관전자 제외 추가
                                 .collect(java.util.stream.Collectors.toList());
 
                         if (targets.isEmpty()) {
@@ -156,27 +172,20 @@ public class ITEMS {
                             return stack;
                         }
 
-                        // 랜덤 타겟 선정 및 이동
                         Player target = targets.get(level.random.nextInt(targets.size()));
 
-                        // 이동 전 소리
+                        // 이동 로직
                         level.playSound(null, player.getX(), player.getY(), player.getZ(),
                                 SoundEvents.CHORUS_FRUIT_TELEPORT, SoundSource.PLAYERS, 1.0F, 1.0F);
 
-                        // 텔레포트!
                         player.teleportTo(target.getX(), target.getY(), target.getZ());
 
-                        // 이동 후 소리
                         level.playSound(null, target.getX(), target.getY(), target.getZ(),
                                 SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 1.0F, 1.0F);
 
-                        // 메시지 출력
                         player.displayClientMessage(Component.literal("§d부두인형이 당신을 §f" + target.getScoreboardName() + "§d에게 인도했습니다!"), true);
-
-                        // [추가됨] 실명 효과 부여 (이동 후 3초간 앞이 안 보임)
                         player.addEffect(new MobEffectInstance(MobEffects.BLINDNESS, 60, 0));
 
-                        // 아이템 소모
                         if (!player.getAbilities().instabuild) {
                             stack.shrink(1);
                         }
@@ -185,6 +194,42 @@ public class ITEMS {
                 }
             });
 
+    //눈덩이
+    public static final DeferredHolder<Item, Item> FROST_SNOWBALL = ITEMS.register("frost_snowball",
+            () -> new Item(new Item.Properties().stacksTo(16).rarity(Rarity.UNCOMMON)) {
+                @Override
+                public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
+                    ItemStack stack = player.getItemInHand(hand);
+
+                    // 1. 술래 사용 제한
+                    if (player.getTags().contains("seeker")) {
+                        if (!level.isClientSide) {
+                            player.displayClientMessage(Component.literal("§c술래는 사용할 수 없습니다."), true);
+                        }
+                        return InteractionResultHolder.fail(stack);
+                    }
+
+                    // 2. 던지는 소리
+                    level.playSound(null, player.getX(), player.getY(), player.getZ(),
+                            SoundEvents.SNOWBALL_THROW, SoundSource.NEUTRAL, 0.5F, 1.2F);
+
+                    if (!level.isClientSide) {
+                        // 눈덩이 엔티티 생성 (아이템 모습 포함)
+                        Snowball snowball = new Snowball(level, player);
+                        snowball.setItem(stack);
+                        snowball.shootFromRotation(player, player.getXRot(), player.getYRot(), 0.0F, 1.5F, 1.0F);
+                        level.addFreshEntity(snowball);
+                    }
+
+                    if (!player.getAbilities().instabuild) {
+                        stack.shrink(1);
+                    }
+
+                    return InteractionResultHolder.sidedSuccess(stack, level.isClientSide());
+                }
+            });
+
+    //------------------------------{{술래}}-------------------------------
     //표식
     public static final DeferredHolder<Item, Item> SEEKER_MARK = ITEMS.register("seeker_mark",
             () -> new Item(new Item.Properties().stacksTo(1).rarity(Rarity.EPIC)) {
@@ -244,8 +289,8 @@ public class ITEMS {
                     return InteractionResultHolder.sidedSuccess(stack, level.isClientSide());
                 }
             });
+    //------------------------------{{시스템}}-------------------------------
 
-    //도발
     public static final DeferredHolder<Item, Item> TAUNT_ITEM = ITEMS.register("taunt_item",
             () -> new Item(new Item.Properties().stacksTo(1).rarity(Rarity.EPIC)) {
                 @Override
@@ -281,7 +326,8 @@ public class ITEMS {
                     return InteractionResultHolder.fail(stack);
                 }
             });
-    //캐비넷 아이템
+
+                    //캐비넷 아이템
     public static final DeferredHolder<Item, Item> CABINET_ITEM = ITEMS.register("block_cabinet",
             () -> new BlockItem(ModBlocks.CABINET.get(), new Item.Properties()));
 
@@ -293,6 +339,10 @@ public class ITEMS {
                     // 뿅망치 대미지 설정 (예: 공격력 4, 공격 속도 -2.0)
                     .attributes(SwordItem.createAttributes(Tiers.WOOD, 3, -2.4f))
             ));
+
+        //------------------------------{{관전자}}-------------------------------
+        public static final DeferredHolder<Item, Item> SPECTATOR_TRAP = ITEMS.register("spectator_trap",
+                () -> new Item(new Item.Properties().stacksTo(1).rarity(Rarity.RARE)));
 
 // 1. 등록기(Register) 생성
     public static final DeferredRegister<Block> BLOCKS = DeferredRegister.create(Registries.BLOCK, "hideandseekmod");

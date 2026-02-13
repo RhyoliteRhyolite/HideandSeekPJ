@@ -22,7 +22,8 @@ public class ItemPicker {
     private static final List<Item> RUNNER_ITEMS = List.of(
             ITEMS.ENERGY_DRINK.get(),
             ITEMS.CHALK_ERASER.get(),
-            ITEMS.VOODOO_DOLL.get()
+            ITEMS.VOODOO_DOLL.get(),
+            ITEMS.FROST_SNOWBALL.get()
     );
 
     public static void giveRandomItem(Player player) {

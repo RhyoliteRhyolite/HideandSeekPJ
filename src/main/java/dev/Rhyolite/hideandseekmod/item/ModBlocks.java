@@ -17,6 +17,7 @@ public class ModBlocks {
     public static final DeferredHolder<Block, Block> TRAP_BLOCK = BLOCKS.register("trap",
             () -> new TrapBlock(BlockBehaviour.Properties.of().noCollission().instabreak().noOcclusion()));
 
+
     //캐비넷
     public static final DeferredHolder<Block, Block> CABINET = BLOCKS.register("cabinet",
             () -> new CabinetBlock(BlockBehaviour.Properties.of()
